@@ -1,0 +1,27 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">  
+<html>  
+<head>  
+    <title>list movie</title>  
+</head>  
+<body>  
+	<table>
+		{% for m in movies %}			
+			<tr>
+				<td>电影名称:{{m.name}}</td>
+						
+				<td>上映日期:{{m.release_date}}</td>
+					
+				<td>放映时间:{{m.release_time}}</td>
+
+				<td>语言版本:{{m.language_type}}</td>
+
+				<td>放映厅:{{m.video_hall}}</td>
+
+				<td>电影价格:{{m.price}}</td>
+
+				<td>渠道来源:{{m.channel.name}}</td>
+			</tr>		
+		{% endfor %}
+	</table>
+</body>
+</html>  
