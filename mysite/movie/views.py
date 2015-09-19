@@ -1,10 +1,11 @@
 #coding:utf-8
+import sys, os, cStringIO, urllib2, Image
 from django.shortcuts import render_to_response, HttpResponse
 from models import Channel,Cinema,Movie,MoviePrice
 from bs4 import BeautifulSoup
 from datetime import datetime
 
-import urllib
+import urllib,re
 
 
 # Create your views here.
@@ -48,27 +49,36 @@ def saveMeiTuanMovie (request):
         html = urllib.urlopen('http://sh.meituan.com/shop/' + cinema.code).read()
         soup = BeautifulSoup(html)
         for movieInfo in soup.find_all('div',class_='movie-info'):
-            name = movieInfo.find('a')['title']
+            name = movieInfo.find('a')['title']          
             for n, showtime in enumerate(movieInfo.find(class_='show-time').find_all('a')):          
                 release_date = showtime['data-date']
                 table = movieInfo.find_all('table')[n]
-                for k, tr in enumerate(table.find_all('tr')):
-                    if k > 0:
-                        try:                                                 
-                            start_time = tr.find(class_='start-time').text
-                            end_time = tr.find(class_='end-time').text
-                            release_time = '-'.join((start_time, end_time))
-                            language_type = tr.find_all('td')[1].text
-                            video_hall = tr.find_all('td')[2].text
-                            if tr.find(class_='price'):                        
-                                price = tr.find(class_='price').text
-                            else:
-                                price = 'price not found'
-                            mp = MoviePrice(name=name,release_date=release_date,release_time=release_time,language_type=language_type,video_hall=video_hall,price=price,channel=channel,cinema=cinema)
-                            mp.save()
-                        except BaseException, e:
-                            print 'error occured!',e
-
+                tr = table.find_all('tr')[1]
+                try:                                                 
+                    #start_time = tr.find(class_='start-time').text
+                    #end_time = tr.find(class_='end-time').text
+                    #release_time = '-'.join((start_time, end_time))                           
+                    #video_hall = tr.find_all('td')[2].text
+                    language_type = tr.find_all('td')[1].text
+                    price = ''
+                    if tr.find(class_='price'):
+                        strong = tr.find(class_='price')                
+                        for p in strong.find_all('i'):
+                            url = re.compile('(http.*png)').findall(p['style'].split(';')[0])[0]
+                            position = p['style'].split(';')[1].split(':')[1].replace(' ', '')
+                            wh = re.compile('(-?\d+)').findall(position)
+                            num = parseNum(url, abs(int(wh[0])), abs(int(wh[1])))
+                            if num == 10:
+                               num = '.'
+                            price += str(num)
+                        price += tr.find(class_='price').text
+                    else:
+                        price += 'price not found'
+                    mp = MoviePrice(name=name,release_date=release_date,language_type=language_type,price=price,channel=channel,cinema=cinema)
+                    print price
+                    mp.save()
+                except BaseException, e:
+                    print 'error occured!',e                       
     return HttpResponse("save success! ")
             
 
@@ -85,3 +95,22 @@ def list (request):
     movieList = MoviePrice.objects.filter(name=movieName,channel=channel,cinema=cinema)
     movieList = [movie for movie in movieList if datetime.strptime(movie.release_date.strftime("%Y-%m-%d") + " " + movie.release_time.split('-')[0], "%Y-%m-%d %H:%M") > datetime.now()]
     return render_to_response('list.html',{'movies':movieList})
+
+
+#解析美团网图片式价格
+def parseNum(url, x, y):
+    img = Image.open(cStringIO.StringIO(urllib2.urlopen(url).read()))
+
+    cg = img.crop((x, y + 2, x + 7, y + 12)).resize((20,30)).convert('L')
+    diffs = [0,0,0,0,0,0,0,0,0,0,0]
+
+    for yi in range(30):
+        for xi in range(20):
+            imgDir = os.path.join(sys.path[0],'movie/numbers')
+            for i in os.listdir(imgDir):
+                if os.path.isfile(os.path.join(imgDir,i)) and i.endswith('.png') :
+                    img_i = Image.open(os.path.join(imgDir,i))
+                    if cg.getpixel((xi, yi)) != img_i.getpixel((xi, yi)):
+                        diffs[int(i.split('.')[0])] += 1
+
+    return diffs.index(min(diffs))
