@@ -5,5 +5,9 @@ urlpatterns = patterns('',
     # url(r'^$', 'mysite.views.home', name='home'),
     # url(r'^blog/', include('blog.urls')),
 
-    url(r'^movie/add/','movie.views.add'),
+    url(r'^meituan/cinema/','movie.meituan.saveCinema'),
+    #url(r'^meituan/movie/','movie.meituan.saveMovie'),
+    url(r'^meituan/price/','movie.meituan.savePrice'),
+    url(r'^taobao/cinema/','movie.taobao.saveCinema'), 
+    url(r'^taobao/price/','movie.taobao.savePrice'),
 )
